@@ -228,8 +228,8 @@ namespace ExpenseTracker.Application
 
             if (oldCategory is not null)
             {
-                Console.WriteLine($"Change name {oldCategory.Name}?");
-                bool isChangeName = ReadYesNoResponse();
+                Console.WriteLine();
+                bool isChangeName = ReadYesNoResponse($"Change name {oldCategory.Name}?");
                 if (isChangeName)
                 {
                     Console.WriteLine("Enter new category name:");
@@ -237,11 +237,15 @@ namespace ExpenseTracker.Application
                     oldCategory.Name = string.IsNullOrEmpty(categoryName) ? oldCategory.Name : categoryName;
                 }
 
-                decimal categoryBudget = ReadDecimal("Enter new category budget:");
+                Console.WriteLine();
+                bool isChangeBudget = ReadYesNoResponse($"Change budget {oldCategory.Budget}?");
+                if (isChangeBudget)
+                {
+                    decimal categoryBudget = ReadDecimal("Enter category budget:");
+                    oldCategory.Budget = categoryBudget;
+                }
 
-                Category category = new Category(categoryName, categoryBudget);
-
-                string updateQuery = "INSERT INTO Categories(c_name, c_budget) VALUES('" + category.Name + "', " + category.Budget + ")";
+                string updateQuery = "UPDATE Categories SET c_name = '" + oldCategory.Name + "', c_budget = " + oldCategory.Budget + " WHERE c_id = " + oldCategory.Id + "";
 
                 SqlCommand updateCommand = new SqlCommand(updateQuery, dbConnnection.connection);
 
