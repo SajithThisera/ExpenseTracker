@@ -16,6 +16,11 @@ namespace ExpenseTracker.Classes.Models.Transaction
             Type = type;
             TimeStamp = timestamp;
         }
+
+        public TransactionBase()
+        {
+        }
+
         public int Id { get; set; }
 
         public string Name { get; set; }

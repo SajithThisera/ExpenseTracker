@@ -19,6 +19,10 @@ namespace ExpenseTracker.Classes.Models.Transaction
             NextExecutionDate = nextExecutionDate;
         }
 
+        public RecurringTransaction()
+        {
+        }
+
         public RecurringTypes RecurringType { get; set; }
 
         public DateTime EndDate { get; set; }
