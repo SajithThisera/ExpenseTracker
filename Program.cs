@@ -4,25 +4,20 @@ using ExpenseTracker.Enums;
 using ExpenseTracker.Interfaces;
 using ExpenseTracker.Interfaces.Models;
 using ExpenseTracker.Services;
-using Microsoft.SqlServer.Server;
 using System.Data.SqlClient;
 using System.Globalization;
-using System.Transactions;
 
-namespace ExpenseTracker // Note: actual namespace depends on the project name.
+namespace ExpenseTracker
 {
     internal class Program
     {
         static void Main(string[] args)
         {
+            ExecuteRecurringTransactions();
             DisplayMenuUI();
-            while (true)
-            {
-                
-            }
         }
 
-        static void GetTransactions()
+        static void DisplayTransactions()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
 
@@ -157,9 +152,7 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
         {
             DisplayCategories();
 
-            Console.WriteLine();
-            Console.WriteLine("Press Enter to exit...");
-            string? exit = Console.ReadLine();
+            WaitForExit();
         }
 
         static void DisplayCategories()
@@ -202,7 +195,6 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
             decimal categoryBudget = ReadDecimal("Enter category budget:");
 
             Category category = new Category(categoryName, categoryBudget);
-            // Console.WriteLine("Add a transaction to the category");
 
             string insertQuery = "INSERT INTO Categories(c_name, c_budget) VALUES('" + category.Name + "', " + category.Budget + ")";
 
@@ -235,6 +227,103 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
         static void ExecuteRecurringTransactions()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            string filterQuery = "SELECT * FROM Transactions WHERE t_nextexecution is not null AND CAST(t_nextexecution AS DATE) < CAST(GETDATE() AS DATE);";
+            SqlCommand readCommand = new SqlCommand(filterQuery, dbConnnection.connection);
+
+            List<RecurringTransaction> results = new List<RecurringTransaction>();
+
+            try
+            {
+                dbConnnection.connection.Open();
+                SqlDataReader dataReader = readCommand.ExecuteReader();
+
+                while (dataReader.Read())
+                {
+                    RecurringTransaction transaction = new RecurringTransaction();
+
+                    transaction.Id = dataReader.GetInt32(dataReader.GetOrdinal("t_id"));
+                    transaction.Name = dataReader.GetString(dataReader.GetOrdinal("t_name"));
+                    transaction.Amount = dataReader.GetDecimal(dataReader.GetOrdinal("t_amount"));
+                    transaction.Type = (TransactionTypes)dataReader.GetInt32(dataReader.GetOrdinal("t_type"));
+                    transaction.TimeStamp = dataReader.GetDateTime(dataReader.GetOrdinal("t_timestamp"));
+                    transaction.RecurringType = (RecurringTypes)dataReader.GetInt32(dataReader.GetOrdinal("t_recurringtype"));
+                    transaction.EndDate = dataReader.GetDateTime(dataReader.GetOrdinal("t_enddate"));
+                    transaction.NextExecutionDate = dataReader.GetDateTime(dataReader.GetOrdinal("t_nextexecution"));
+
+                    results.Add(transaction);
+                }
+
+                dataReader.Close();
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            GenerateTransactions(results);
+        }
+
+        private static void GenerateTransactions(List<RecurringTransaction> input_transactions)
+        {
+            string format = "yyyy-MM-dd HH:mm:ss";
+            int categoryId = 1; // TODO: Handle properly may be we need to add this to the base transaction
+            DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            foreach (var tr in input_transactions)
+            {                
+                DateTime nextRecurr = tr.NextExecutionDate;
+
+                while(nextRecurr < DateTime.UtcNow)
+                {
+                    string insertQuery;
+                    switch (tr.RecurringType)
+                    {
+                        case RecurringTypes.Daily:
+                            {
+                                nextRecurr = nextRecurr.AddDays(1);
+                                break;
+                            }
+                        case RecurringTypes.Weekly:
+                            {
+                                nextRecurr = nextRecurr.AddDays(7);
+                                break;
+                            }
+                        case RecurringTypes.Monthly:
+                            {
+                                nextRecurr = nextRecurr.AddDays(30);
+                                break;
+                            }
+                        case RecurringTypes.Anual:
+                            {
+                                nextRecurr = nextRecurr.AddDays(365);
+                                break;
+                            }
+                    }
+
+                    // Insert a new transaction
+                    ITransactionFactory recurringTransactionFactory = new RecurringTransactionFactory(tr.RecurringType, tr.EndDate, nextRecurr);
+                    ITransaction recurringTransaction = recurringTransactionFactory.CreateTransaction(tr.Name, tr.Amount, tr.Type, DateTime.UtcNow);
+                    if (recurringTransaction is RecurringTransaction transaction)
+                    {
+                        insertQuery = "INSERT INTO Transactions(t_name, category_id, t_amount, t_type, t_timestamp, t_recurringtype, t_enddate, t_nextexecution) VALUES('" + transaction.Name + "', " + categoryId + ", " + transaction.Amount + ", " + (int)transaction.Type + ", '" + transaction.TimeStamp.ToString(format) + "', " + (int)transaction.RecurringType + ", '" + transaction.EndDate.ToString(format) + "', '" + transaction.NextExecutionDate.ToString(format) + "')";
+
+                        SqlCommand insertCommand = new SqlCommand(insertQuery, dbConnnection.connection);
+                        try
+                        {
+                            dbConnnection.connection.Open();
+                            insertCommand.ExecuteNonQuery();
+                            Console.WriteLine("Execution succeeded!");
+                            dbConnnection.connection.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+                    }
+                }
+            }
         }
 
         private static decimal ReadDecimal(string title)
@@ -242,7 +331,6 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
             while (true)
             {
                 Console.WriteLine(title);
-
                 string userInput = Console.ReadLine();
 
                 decimal result;
@@ -354,7 +442,7 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
                 Console.WriteLine("Enter the corrensponding value:");
                 string userInput = Console.ReadLine();
 
-                switch (userInput)
+                switch (userInput.ToUpper())
                 {
                     case "Y":
                         return true;
@@ -461,7 +549,7 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
                             DeleteTransaction();
                             break;
                         case 3:
-                            GetTransactions();
+                            DisplayTransactions();
                             break;
                     }
                     break;
@@ -538,6 +626,13 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
             Console.WriteLine();
             Console.WriteLine($"                                                   {subMenuName} MENU                                               ");
             Console.WriteLine();
+        }
+
+        private static void WaitForExit()
+        {
+            Console.WriteLine();
+            Console.WriteLine("Press Enter to exit...");
+            string? exit = Console.ReadLine();
         }
 
         private static void DisplayMenuUI()
