@@ -33,8 +33,9 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
             {
                 dbConnnection.connection.Open();
                 SqlDataReader dataReader = readCommand.ExecuteReader();
-
-                Console.WriteLine("Id \t|Category Id\t|Name\t|Amount\t|Type\t|TimeStamp\t|RecurringFrequency\t|EndDate\t|NextExecution");
+                Console.WriteLine();
+                Console.WriteLine(" _____________________________________________________________________________________________________________________ ");
+                Console.WriteLine("Id \t|CatId\t|Name\t|Amount\t|Type\t|TimeStamp\t\t|Freq\t|EndDate\t\t|NextExecution");
                 Console.WriteLine();
                 while (dataReader.Read())
                 {
@@ -164,7 +165,8 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
         static void DisplayCategories()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
-
+            Console.WriteLine();
+            Console.WriteLine(" _____________________________________________________________________________________________________________________ ");
             string readQuery = "SELECT * FROM Categories";
             SqlCommand readCommand = new SqlCommand(readQuery, dbConnnection.connection);
 
@@ -519,7 +521,7 @@ namespace ExpenseTracker // Note: actual namespace depends on the project name.
             Console.WriteLine(" _____________________________________________________________________________________________________________________ ");
             Console.WriteLine("|                                                                                                                     |");
             Console.WriteLine("|                                                                                                                     |");
-            Console.WriteLine("|                                                   EXPENSE TRACKER                                                   |");
+            Console.WriteLine("|                                                  EXPENSE TRACKER                                                    |");
             Console.WriteLine("|                                                                                                                     |");
             Console.WriteLine("|_____________________________________________________________________________________________________________________|");
         }
