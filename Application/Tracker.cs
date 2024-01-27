@@ -134,6 +134,38 @@ namespace ExpenseTracker.Application
         internal static void DeleteTransaction()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            Console.WriteLine("Available tranactions:");
+            Console.WriteLine();
+            DisplayTransactions();
+            Console.WriteLine();
+            Console.WriteLine("Enter transaction id:");
+            int transactionId = ReadInt("");
+            RecurringTransaction existingTransaction = (RecurringTransaction)GetTransactionById(transactionId);
+
+            if (existingTransaction is null)
+            {
+                Console.WriteLine("Transaction not found!");
+                UIDrawer.WaitForExit();
+                return;
+            }
+
+            string deleteQuery = $"DELETE FROM Transactions WHERE t_id = {existingTransaction.Id}";
+
+            SqlCommand deleteCommand = new SqlCommand(deleteQuery, dbConnnection.connection);
+
+            try
+            {
+                dbConnnection.connection.Open();
+                deleteCommand.ExecuteNonQuery();
+                Console.WriteLine("Execution succeeded!");
+
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         internal static void UpdateTransaction()
@@ -358,6 +390,38 @@ namespace ExpenseTracker.Application
         internal static void DeleteCategory()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            Console.WriteLine("Available categories:");
+            Console.WriteLine();
+            DisplayCategories();
+            Console.WriteLine();
+            Console.WriteLine("Enter category id:");
+            int categoryId = ReadInt("");
+            Category existingcategory = (Category)GetCategoryById(categoryId);
+
+            if (existingcategory is null)
+            {
+                Console.WriteLine("Category not found!");
+                UIDrawer.WaitForExit();
+                return;
+            }
+
+            string deleteQuery = $"DELETE FROM Categories WHERE c_id = {existingcategory.Id}";
+
+            SqlCommand deleteCommand = new SqlCommand(deleteQuery, dbConnnection.connection);
+
+            try
+            {
+                dbConnnection.connection.Open();
+                deleteCommand.ExecuteNonQuery();
+                Console.WriteLine("Execution succeeded!");
+
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         internal static void UpdateCategory()
