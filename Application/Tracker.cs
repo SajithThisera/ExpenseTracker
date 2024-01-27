@@ -217,6 +217,168 @@ namespace ExpenseTracker.Application
         internal static void UpdateCategory()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            Console.WriteLine("Available categories:");
+            Console.WriteLine();
+            DisplayCategories();
+            Console.WriteLine();
+            Console.WriteLine("Enter category id:");
+            int categoryId = ReadInt("");
+            Category oldCategory = GetCategoryById(categoryId);
+
+            if (oldCategory is not null)
+            {
+                Console.WriteLine();
+                bool isChangeName = ReadYesNoResponse($"Change name {oldCategory.Name}?");
+                if (isChangeName)
+                {
+                    Console.WriteLine("Enter new category name:");
+                    string? categoryName = Console.ReadLine();
+                    oldCategory.Name = string.IsNullOrEmpty(categoryName) ? oldCategory.Name : categoryName;
+                }
+
+                Console.WriteLine();
+                bool isChangeBudget = ReadYesNoResponse($"Change budget {oldCategory.Budget}?");
+                if (isChangeBudget)
+                {
+                    decimal categoryBudget = ReadDecimal("Enter category budget:");
+                    oldCategory.Budget = categoryBudget;
+                }
+
+                string updateQuery = "UPDATE Categories SET c_name = '" + oldCategory.Name + "', c_budget = " + oldCategory.Budget + " WHERE c_id = " + oldCategory.Id + "";
+
+                SqlCommand updateCommand = new SqlCommand(updateQuery, dbConnnection.connection);
+
+                try
+                {
+                    dbConnnection.connection.Open();
+                    updateCommand.ExecuteNonQuery();
+                    Console.WriteLine("Execution succeeded!");
+
+                    dbConnnection.connection.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Category not found!");
+                UIDrawer.WaitForExit();
+            }
+        }
+
+        private static Category GetCategoryById(int id)
+        {
+
+            DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            string filterQuery = $"SELECT * FROM Categories WHERE c_id = {id};";
+            SqlCommand readCommand = new SqlCommand(filterQuery, dbConnnection.connection);
+
+            Category result = new Category();
+
+            try
+            {
+                dbConnnection.connection.Open();
+                SqlDataReader dataReader = readCommand.ExecuteReader();
+
+                while (dataReader.Read())
+                {
+                    result.Id = dataReader.GetInt32(dataReader.GetOrdinal("c_id"));
+                    result.Name = dataReader.GetString(dataReader.GetOrdinal("c_name"));
+                    result.Budget = dataReader.GetDecimal(dataReader.GetOrdinal("c_budget"));
+                }
+
+                dataReader.Close();
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return result;
+        }
+
+        private static List<RecurringTransaction> GetRecurringTransactionCategoryId(int id)
+        {
+            DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            string filterQuery = $"SELECT * FROM Transactions WHERE category_id = {id} AND t_recurringtype IS NOT NULL;";
+            SqlCommand readCommand = new SqlCommand(filterQuery, dbConnnection.connection);
+
+            List<RecurringTransaction> results = new List<RecurringTransaction>();
+
+            try
+            {
+                dbConnnection.connection.Open();
+                SqlDataReader dataReader = readCommand.ExecuteReader();
+
+                while (dataReader.Read())
+                {
+                    RecurringTransaction transaction = new RecurringTransaction();
+
+                    transaction.Id = dataReader.GetInt32(dataReader.GetOrdinal("t_id"));
+                    transaction.Name = dataReader.GetString(dataReader.GetOrdinal("t_name"));
+                    transaction.Amount = dataReader.GetDecimal(dataReader.GetOrdinal("t_amount"));
+                    transaction.Type = (TransactionTypes)dataReader.GetInt32(dataReader.GetOrdinal("t_type"));
+                    transaction.TimeStamp = dataReader.GetDateTime(dataReader.GetOrdinal("t_timestamp"));
+                    transaction.RecurringType = (RecurringTypes)dataReader.GetInt32(dataReader.GetOrdinal("t_recurringtype"));
+                    transaction.EndDate = dataReader.GetDateTime(dataReader.GetOrdinal("t_enddate"));
+                    transaction.NextExecutionDate = dataReader.GetDateTime(dataReader.GetOrdinal("t_nextexecution"));
+
+                    results.Add(transaction);
+                }
+
+                dataReader.Close();
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return results;
+        }
+
+        private static List<SingleTransaction> GetSingleTransactionsByCategoryId(int id)
+        {
+            DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            string filterQuery = $"SELECT * FROM Transactions WHERE category_id = {id} AND t_recurringtype IS NULL;";
+            SqlCommand readCommand = new SqlCommand(filterQuery, dbConnnection.connection);
+
+            List<SingleTransaction> results = new List<SingleTransaction>();
+
+            try
+            {
+                dbConnnection.connection.Open();
+                SqlDataReader dataReader = readCommand.ExecuteReader();
+
+                while (dataReader.Read())
+                {
+                    SingleTransaction transaction = new SingleTransaction();
+
+                    transaction.Id = dataReader.GetInt32(dataReader.GetOrdinal("t_id"));
+                    transaction.Name = dataReader.GetString(dataReader.GetOrdinal("t_name"));
+                    transaction.Amount = dataReader.GetDecimal(dataReader.GetOrdinal("t_amount"));
+                    transaction.Type = (TransactionTypes)dataReader.GetInt32(dataReader.GetOrdinal("t_type"));
+                    transaction.TimeStamp = dataReader.GetDateTime(dataReader.GetOrdinal("t_timestamp"));
+
+                    results.Add(transaction);
+                }
+
+                dataReader.Close();
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return results;
         }
 
         public static void ExecuteRecurringTransactions()

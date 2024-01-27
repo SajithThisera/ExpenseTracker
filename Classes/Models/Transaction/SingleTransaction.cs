@@ -12,5 +12,9 @@ namespace ExpenseTracker.Classes.Models.Transaction
             : base(name, amount, type, timestamp)
         {
         }
+
+        public SingleTransaction()
+        {
+        }
     }
 }
