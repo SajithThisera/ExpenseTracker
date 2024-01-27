@@ -324,12 +324,12 @@ namespace ExpenseTracker.Application
 
         internal static void GetCategories()
         {
-            DisplayCategories();
+            DisplayCategories(true);
 
             UIDrawer.WaitForExit();
         }
 
-        internal static void DisplayCategories()
+        internal static void DisplayCategories(bool displaySummary = false)
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
             Console.WriteLine();
@@ -359,14 +359,17 @@ namespace ExpenseTracker.Application
                 Console.WriteLine(ex.Message);
             }
 
-            Console.WriteLine("");
-            int categoryId = ReadInt("Enter category id:");
-            Category categoryDetails = GetCategoryById(categoryId);
-            decimal balance = categoryDetails.Budget - GetCategorySummary(categoryId);
-            Console.WriteLine("______Category Summary______");
-            Console.WriteLine($"Category Name:{categoryDetails.Name}");
-            Console.WriteLine($"Category Budget:{categoryDetails.Budget}");
-            Console.WriteLine($"Category Remaining Balance:{balance}");
+            if (displaySummary)
+            {
+                Console.WriteLine("");
+                int categoryId = ReadInt("Enter category id:");
+                Category categoryDetails = GetCategoryById(categoryId);
+                decimal balance = categoryDetails.Budget - GetCategorySummary(categoryId);
+                Console.WriteLine("______Category Summary______");
+                Console.WriteLine($"Category Name:{categoryDetails.Name}");
+                Console.WriteLine($"Category Budget:{categoryDetails.Budget}");
+                Console.WriteLine($"Category Remaining Balance:{balance}");
+            }
         }
 
         private static decimal GetCategorySummary(int id)
