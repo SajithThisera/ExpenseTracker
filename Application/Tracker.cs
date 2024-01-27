@@ -1,17 +1,19 @@
 ﻿using ExpenseTracker.Classes.Models.Category;
 using ExpenseTracker.Classes.Models.Transaction;
+using ExpenseTracker.Classes.Static;
 using ExpenseTracker.Enums;
-using ExpenseTracker.Interfaces.Models;
 using ExpenseTracker.Interfaces;
+using ExpenseTracker.Interfaces.Models;
 using ExpenseTracker.Services;
+using ExpenseTracker.Services.Extensions;
 using System.Data.SqlClient;
 using System.Globalization;
-using ExpenseTracker.Classes.Static;
 
 namespace ExpenseTracker.Application
 {
     public static class Tracker
     {
+        const string format = "yyyy-MM-dd HH:mm:ss";
         internal static void DisplayTransactions()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
@@ -47,10 +49,6 @@ namespace ExpenseTracker.Application
             {
                 Console.WriteLine(ex.Message);
             }
-
-            Console.WriteLine();
-            Console.WriteLine("Press Enter to exit...");
-            string? exit = Console.ReadLine();
         }
 
         internal static void InsertTransaction()
@@ -104,7 +102,7 @@ namespace ExpenseTracker.Application
 
                 if (recurringTransaction is RecurringTransaction transaction)
                 {
-                    insertQuery = "INSERT INTO Transactions(t_name, category_id, t_amount, t_type, t_timestamp, t_recurringtype, t_enddate, t_nextexecution) VALUES('" + transaction.Name + "', " + categoryId + ", " + transaction.Amount + ", " + (int)transaction.Type + ", '" + transaction.TimeStamp.ToString(format) + "', " + (int)transaction.RecurringType + ", '" + transaction.EndDate.ToString(format) + "', '" + transaction.NextExecutionDate.ToString(format) + "')";
+                    insertQuery = "INSERT INTO Transactions(t_name, category_id, t_amount, t_type, t_timestamp, t_recurringtype, t_enddate, t_nextexecution) VALUES('" + transaction.Name + "', " + categoryId + ", " + transaction.Amount + ", " + (int)transaction.Type + ", '" + transaction.TimeStamp.ToString(format) + "', " + (int)transaction.RecurringType + ", '" + transaction.EndDate.Value.ToString(format) + "', '" + transaction.NextExecutionDate.Value.ToString(format) + "')";
                 }
 
             }
@@ -141,6 +139,154 @@ namespace ExpenseTracker.Application
         internal static void UpdateTransaction()
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            Console.WriteLine("Available tranactions:");
+            Console.WriteLine();
+            DisplayTransactions();
+            Console.WriteLine();
+            Console.WriteLine("Enter transaction id:");
+            int transactionId = ReadInt("");
+            RecurringTransaction oldTransaction = (RecurringTransaction)GetTransactionById(transactionId);
+
+            if (oldTransaction is not null)
+            {
+                Console.WriteLine();
+                bool isChangeName = ReadYesNoResponse($"Change name {oldTransaction.Name}?");
+                if (isChangeName)
+                {
+                    Console.WriteLine("Enter new transaction name:");
+                    string? transactionName = Console.ReadLine();
+                    oldTransaction.Name = string.IsNullOrEmpty(transactionName) ? oldTransaction.Name : transactionName;
+                }
+
+                Console.WriteLine();
+                bool isChangeAmount = ReadYesNoResponse($"Change amount {oldTransaction.Amount}?");
+                if (isChangeAmount)
+                {
+                    decimal transactionAmount = ReadDecimal("Enter transaction amount:");
+                    oldTransaction.Amount = transactionAmount;
+                }
+
+                Console.WriteLine();
+                bool isChangeType = ReadYesNoResponse($"Change amount {(TransactionTypes)oldTransaction.Type}?");
+                if (isChangeType)
+                {
+                    TransactionTypes transactionType = ReadTransactionType("Enter transaction type:");
+                    oldTransaction.Type = transactionType;
+                }
+
+                if (oldTransaction.RecurringType is null)
+                {
+                    Console.WriteLine();
+                    bool isMakeRecurring = ReadYesNoResponse($"Make this transaction recurring?");
+                    if (isMakeRecurring)
+                    {
+                        Console.WriteLine();
+                        RecurringTypes recurringType = ReadRecurrnigType("Enter recurring type:");
+                        oldTransaction.RecurringType = recurringType;
+
+                        Console.WriteLine();
+                        DateTime endDate = ReadDateTime("Enter transaction end date");
+                        oldTransaction.EndDate = endDate;
+
+                        DateTime nextExecutionOn = DateTime.Now;
+                        switch (recurringType)
+                        {
+                            case RecurringTypes.Daily:
+                                nextExecutionOn = nextExecutionOn.AddDays(1);
+                                break;
+                            case RecurringTypes.Weekly:
+                                nextExecutionOn = nextExecutionOn.AddDays(7);
+                                break;
+                            case RecurringTypes.Monthly:
+                                nextExecutionOn = nextExecutionOn.AddDays(30);
+                                break;
+                            case RecurringTypes.Anual:
+                                nextExecutionOn = nextExecutionOn.AddDays(365);
+                                break;
+                        }
+                        oldTransaction.NextExecutionDate = nextExecutionOn;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine();
+                    bool isStopRecurring = ReadYesNoResponse($"Make this transaction non-recurring?");
+                    if (isStopRecurring)
+                    {
+                        oldTransaction.RecurringType = null;
+                        oldTransaction.EndDate = null;
+                        oldTransaction.NextExecutionDate = null;
+                    }
+                }
+
+
+                var end = oldTransaction.EndDate is not null ? oldTransaction.EndDate.Value.ToString(format) : "NULL";
+                var nextExecution = oldTransaction.NextExecutionDate is not null ? oldTransaction.NextExecutionDate.Value.ToString(format) : "NULL";
+                var recurrtype = oldTransaction.RecurringType is not null ? (int?)oldTransaction.RecurringType : null;
+                string updateQuery = $"UPDATE Transactions SET t_name = '{oldTransaction.Name}', t_amount = {oldTransaction.Amount}, t_type = {(int)oldTransaction.Type}, t_enddate = {end}, t_nextexecution = {nextExecution}, t_recurringtype = {recurrtype} WHERE t_id = {oldTransaction.Id};";
+                if (recurrtype is null)
+                {
+                    updateQuery = $"UPDATE Transactions SET t_name = '{oldTransaction.Name}', t_amount = {oldTransaction.Amount}, t_type = {(int)oldTransaction.Type}, t_enddate = {end}, t_nextexecution = {nextExecution}, t_recurringtype = null WHERE t_id = {oldTransaction.Id};";
+                }
+
+                SqlCommand updateCommand = new SqlCommand(updateQuery, dbConnnection.connection);
+
+                try
+                {
+                    dbConnnection.connection.Open();
+                    updateCommand.ExecuteNonQuery();
+                    Console.WriteLine("Execution succeeded!");
+
+                    dbConnnection.connection.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Category not found!");
+                UIDrawer.WaitForExit();
+            }
+        }
+
+        public static ITransaction GetTransactionById(int id)
+        {
+            DatabaseConnection dbConnnection = DatabaseConnection.Instance;
+
+            string filterQuery = $"SELECT * FROM Transactions WHERE t_id = {id};";
+            SqlCommand readCommand = new SqlCommand(filterQuery, dbConnnection.connection);
+
+            RecurringTransaction result = new RecurringTransaction();
+
+            try
+            {
+                dbConnnection.connection.Open();
+                SqlDataReader dataReader = readCommand.ExecuteReader();
+
+                while (dataReader.Read())
+                {
+                    result.Id = dataReader.Get<int>("t_id");
+                    result.Name = dataReader.Get<string>("t_name");
+                    result.Amount = dataReader.Get<decimal>("t_amount");
+                    result.Type = (TransactionTypes)dataReader.Get<int>("t_type");
+                    result.TimeStamp = dataReader.Get<DateTime>("t_timestamp");
+                    result.RecurringType = (RecurringTypes?)dataReader.Get<int?>("t_recurringtype");
+                    result.EndDate = dataReader.Get<DateTime?>("t_enddate");
+                    result.NextExecutionDate = dataReader.Get<DateTime?>("t_nextexecution");
+                }
+
+                dataReader.Close();
+                dbConnnection.connection.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return result;
         }
 
         internal static void GetCategories()
@@ -430,7 +576,7 @@ namespace ExpenseTracker.Application
 
             foreach (var tr in input_transactions)
             {
-                DateTime nextRecurr = tr.NextExecutionDate;
+                DateTime nextRecurr = tr.NextExecutionDate.Value;
 
                 while (nextRecurr < DateTime.UtcNow)
                 {
@@ -460,11 +606,11 @@ namespace ExpenseTracker.Application
                     }
 
                     // Insert a new transaction
-                    ITransactionFactory recurringTransactionFactory = new RecurringTransactionFactory(tr.RecurringType, tr.EndDate, nextRecurr);
+                    ITransactionFactory recurringTransactionFactory = new RecurringTransactionFactory(tr.RecurringType.Value, tr.EndDate.Value, nextRecurr);
                     ITransaction recurringTransaction = recurringTransactionFactory.CreateTransaction(tr.Name, tr.Amount, tr.Type, DateTime.UtcNow);
                     if (recurringTransaction is RecurringTransaction transaction)
                     {
-                        insertQuery = "INSERT INTO Transactions(t_name, category_id, t_amount, t_type, t_timestamp, t_recurringtype, t_enddate, t_nextexecution) VALUES('" + transaction.Name + "', " + categoryId + ", " + transaction.Amount + ", " + (int)transaction.Type + ", '" + transaction.TimeStamp.ToString(format) + "', " + (int)transaction.RecurringType + ", '" + transaction.EndDate.ToString(format) + "', '" + transaction.NextExecutionDate.ToString(format) + "')";
+                        insertQuery = "INSERT INTO Transactions(t_name, category_id, t_amount, t_type, t_timestamp, t_recurringtype, t_enddate, t_nextexecution) VALUES('" + transaction.Name + "', " + categoryId + ", " + transaction.Amount + ", " + (int)transaction.Type + ", '" + transaction.TimeStamp.ToString(format) + "', " + (int)transaction.RecurringType + ", '" + transaction.EndDate.Value.ToString(format) + "', '" + transaction.NextExecutionDate.Value.ToString(format) + "')";
 
                         SqlCommand insertCommand = new SqlCommand(insertQuery, dbConnnection.connection);
                         try
