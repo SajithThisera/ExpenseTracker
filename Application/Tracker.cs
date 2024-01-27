@@ -18,7 +18,7 @@ namespace ExpenseTracker.Application
         {
             DatabaseConnection dbConnnection = DatabaseConnection.Instance;
 
-            string readQuery = "SELECT * FROM Transactions";
+            string readQuery = "SELECT * FROM Transactions ORDER BY(t_timestamp) DESC";
             SqlCommand readCommand = new SqlCommand(readQuery, dbConnnection.connection);
 
             try
