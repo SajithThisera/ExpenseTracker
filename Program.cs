@@ -7,10 +7,8 @@ namespace ExpenseTracker
     {
         static void Main(string[] args)
         {
-            //Tracker.ExecuteRecurringTransactions();
+            Tracker.ExecuteRecurringTransactions();
             UIDrawer.DisplayMenuUI();
-
-            //Tracker.GetTransactionById(1);
         }
 
     }
