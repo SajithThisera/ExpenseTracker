@@ -40,11 +40,5 @@ namespace ExpenseTracker.Classes.Models.Transaction
 
             return this;
         }
-
-        public void Delete()
-        {
-
-        }
-
     }
 }
