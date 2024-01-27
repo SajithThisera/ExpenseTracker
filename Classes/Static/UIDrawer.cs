@@ -55,6 +55,7 @@ namespace ExpenseTracker.Classes.Static
                             break;
                         case 3:
                             Tracker.DisplayTransactions();
+                            WaitForExit();
                             break;
                     }
                     break;

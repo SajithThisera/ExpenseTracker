@@ -23,10 +23,10 @@ namespace ExpenseTracker.Classes.Models.Transaction
         {
         }
 
-        public RecurringTypes RecurringType { get; set; }
+        public RecurringTypes? RecurringType { get; set; }
 
-        public DateTime EndDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
-        public DateTime NextExecutionDate { get; set; }
+        public DateTime? NextExecutionDate { get; set; }
     }
 }
