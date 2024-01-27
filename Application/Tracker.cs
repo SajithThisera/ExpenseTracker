@@ -6,6 +6,7 @@ using ExpenseTracker.Interfaces;
 using ExpenseTracker.Interfaces.Models;
 using ExpenseTracker.Services;
 using ExpenseTracker.Services.Extensions;
+using System;
 using System.Data.SqlClient;
 using System.Globalization;
 
@@ -357,8 +358,53 @@ namespace ExpenseTracker.Application
             {
                 Console.WriteLine(ex.Message);
             }
+
+            Console.WriteLine("");
+            int categoryId = ReadInt("Enter category id:");
+            Category categoryDetails = GetCategoryById(categoryId);
+            decimal balance = categoryDetails.Budget - GetCategorySummary(categoryId);
+            Console.WriteLine("______Category Summary______");
+            Console.WriteLine($"Category Name:{categoryDetails.Name}");
+            Console.WriteLine($"Category Budget:{categoryDetails.Budget}");
+            Console.WriteLine($"Category Remaining Balance:{balance}");
         }
 
+        private static decimal GetCategorySummary(int id)
+        {
+            //Calculate budget summary
+            var recurtransactions = GetRecurringTransactionCategoryId(id);
+            var singleTransactions = GetSingleTransactionsByCategoryId(id);
+
+            decimal recurringSum = 0;
+            decimal singleTransactionsSum = 0;
+            foreach (var tr in recurtransactions)
+            {
+                if (tr.Type == TransactionTypes.Income) 
+                {
+                    recurringSum += tr.Amount;
+                }
+                else
+                {
+                    recurringSum -= tr.Amount;
+                }
+                    
+            }
+
+            foreach (var tr in singleTransactions)
+            {
+                if (tr.Type == TransactionTypes.Income)
+                {
+                    singleTransactionsSum += tr.Amount;
+                }
+                else
+                {
+                    singleTransactionsSum -= tr.Amount;
+                }
+
+            }
+
+            return recurringSum + singleTransactionsSum;
+        }
 
         internal static void InsertCategory()
         {
@@ -566,7 +612,7 @@ namespace ExpenseTracker.Application
             {
                 dbConnnection.connection.Open();
                 SqlDataReader dataReader = readCommand.ExecuteReader();
-
+                
                 while (dataReader.Read())
                 {
                     SingleTransaction transaction = new SingleTransaction();
